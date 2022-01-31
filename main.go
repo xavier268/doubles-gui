@@ -5,6 +5,7 @@ import (
 	"image/color"
 	"log"
 	"os"
+	"time"
 
 	"gioui.org/app"
 	"gioui.org/font/gofont"
@@ -23,7 +24,18 @@ var th = material.NewTheme(gofont.Collection())
 // startButton is a clickable widget
 var startButton widget.Clickable
 var dirEditor widget.Editor
-var results string
+var results []string = make([]string, 0)
+var resList widget.List
+
+func init() {
+
+	dirEditor.SingleLine = true
+	dirEditor.Submit = true
+	dirEditor.Alignment = text.Start
+
+	resList.Axis = layout.Vertical
+	resList.ScrollToEnd = true
+}
 
 func main() {
 
@@ -70,7 +82,7 @@ func mainloop(w *app.Window) error {
 
 						layout.Rigid(drawTitle),
 						layout.Rigid(drawDirEditor),
-						layout.Flexed(0.6, drawResults), // occupy 60% of the remaining space
+						layout.Flexed(1., drawResultsWithMargin), // occupy 100% of the remaining space
 						layout.Rigid(drawStartButton),
 					)
 				},
@@ -87,7 +99,7 @@ func drawStartButton(gtx layout.Context) layout.Dimensions {
 	btn := material.Button(th, &startButton, "Start")
 	if startButton.Clicked() {
 		fmt.Println("*** button was clicked !")
-		results += "blabla bla \n"
+		results = append(results, time.Now().String()+"blabla bla")
 	}
 	return btn.Layout(gtx)
 }
@@ -107,6 +119,20 @@ func drawDirEditor(gtx layout.Context) layout.Dimensions {
 
 func drawResults(gtx layout.Context) layout.Dimensions {
 	fmt.Println("displaying results : ", results)
-	res := material.Body1(th, results)
-	return res.Layout(gtx)
+	res := material.List(th, &resList)
+	return res.Layout(gtx,
+		len(results),
+		func(gtx layout.Context, index int) layout.Dimensions {
+			r := ""
+			if index < len(results) {
+				r = results[index]
+			}
+			parag := material.Label(th, unit.Dp(15), r)
+			return parag.Layout(gtx)
+		},
+	)
+}
+
+func drawResultsWithMargin(gtx layout.Context) layout.Dimensions {
+	return layout.UniformInset(unit.Dp(10)).Layout(gtx, drawResults)
 }
