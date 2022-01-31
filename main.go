@@ -5,6 +5,7 @@ import (
 	"image/color"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"gioui.org/app"
@@ -99,7 +100,7 @@ func drawStartButton(gtx layout.Context) layout.Dimensions {
 	btn := material.Button(th, &startButton, "Start")
 	if startButton.Clicked() {
 		fmt.Println("*** button was clicked !")
-		results = append(results, time.Now().String()+"blabla bla")
+		results = append(results, time.Now().String()+strings.Repeat("bla", len(results)))
 	}
 	return btn.Layout(gtx)
 }
