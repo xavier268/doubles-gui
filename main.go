@@ -5,8 +5,6 @@ import (
 	"image/color"
 	"log"
 	"os"
-	"strings"
-	"time"
 
 	"gioui.org/app"
 	"gioui.org/font/gofont"
@@ -27,6 +25,7 @@ var startButton widget.Clickable
 var dirEditor widget.Editor
 var results []string = make([]string, 0)
 var resList widget.List
+var wdDir string
 
 func init() {
 
@@ -36,6 +35,12 @@ func init() {
 
 	resList.Axis = layout.Vertical
 	resList.ScrollToEnd = true
+
+	var err error
+	wdDir, err = os.Getwd()
+	if err != nil {
+		panic(err)
+	}
 }
 
 func main() {
@@ -73,9 +78,7 @@ func mainloop(w *app.Window) error {
 				gtx,
 				func(gtx layout.Context) layout.Dimensions {
 					return layout.Flex{
-						// Vertical alignment, from top to bottom
-						Axis: layout.Vertical,
-						// Empty space is left at the start, i.e. at the top
+						Axis:    layout.Vertical,
 						Spacing: layout.SpaceBetween,
 					}.Layout(
 						gtx,
@@ -100,7 +103,13 @@ func drawStartButton(gtx layout.Context) layout.Dimensions {
 	btn := material.Button(th, &startButton, "Start")
 	if startButton.Clicked() {
 		fmt.Println("*** button was clicked !")
-		results = append(results, time.Now().String()+strings.Repeat("bla", len(results)))
+
+		go func() { // async processing required to maintain reactivity, but architecture is wrong as is (refesh does not happen)
+			err := Process(wdDir, dirEditor.Text())
+			if err != nil {
+				results = append(results, "An error occured :", err.Error())
+			}
+		}()
 	}
 	return btn.Layout(gtx)
 }
@@ -115,7 +124,16 @@ func drawTitle(gtx layout.Context) layout.Dimensions {
 
 func drawDirEditor(gtx layout.Context) layout.Dimensions {
 	edt := material.Editor(th, &dirEditor, "directory to search")
-	return edt.Layout(gtx)
+
+	return layout.Flex{
+		Axis:    layout.Horizontal,
+		Spacing: layout.SpaceBetween,
+	}.Layout(gtx,
+
+		layout.Rigid(material.Label(th, unit.Dp(16), wdDir).Layout),
+		layout.Rigid(edt.Layout),
+	)
+
 }
 
 func drawResults(gtx layout.Context) layout.Dimensions {
