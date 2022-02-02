@@ -9,7 +9,6 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
-	"time"
 )
 
 var mapDoubles map[string][]string
@@ -34,24 +33,6 @@ func Process(baseDir string, dir string) error {
 	return err
 }
 
-// ListProcess for testing purposes.
-// global variable results hest updated regularly.
-func ListProcess(path string, info fs.FileInfo, err error) error {
-	time.Sleep(100 * time.Millisecond) // artificial slow down
-
-	if info.IsDir() { // process dirs
-		if strings.HasSuffix(path, ".git") {
-			fmt.Println("Skipping .git directory : ", path)
-			return fs.SkipDir
-		}
-	} else { // process files
-		resultsMutex.Lock()
-		results = append(results, path)
-		resultsMutex.Unlock()
-	}
-	return nil
-}
-
 func DoubleProcess(path string, info fs.FileInfo, err error) error {
 
 	if info == nil || err != nil {
@@ -60,7 +41,7 @@ func DoubleProcess(path string, info fs.FileInfo, err error) error {
 	}
 
 	if info.IsDir() { // process dirs
-		if strings.HasSuffix(path, ".git") {
+		if ignoreGit && strings.HasSuffix(path, ".git") {
 			fmt.Println("Skipping .git directory : ", path)
 			return fs.SkipDir
 		}
@@ -71,7 +52,7 @@ func DoubleProcess(path string, info fs.FileInfo, err error) error {
 			return nil
 		}
 
-		if info.Size() == 0 {
+		if ignoreEmpty && info.Size() == 0 {
 			fmt.Println("Ignoring empty file  : ", path)
 			return nil
 		}
