@@ -25,6 +25,10 @@ const DEBUG = false
 // theme to use
 var th = material.NewTheme(gofont.Collection())
 
+// various flags
+var ignoreEmpty, ignoreGit bool
+var processRunning bool
+
 // startButton is a clickable widget
 var startButton widget.Clickable
 var dirEditor widget.Editor
@@ -32,13 +36,12 @@ var results []string = make([]string, 0)
 var resultsMutex sync.Mutex
 var resList widget.List
 var wdDir string
-var processRunning bool
 var ticker = time.NewTicker(500 * time.Millisecond) // force regular refresh of the window
 
 func init() {
 
 	dirEditor.SingleLine = true
-	dirEditor.Submit = true
+	dirEditor.Submit = true // this will just prevent enter to be stored as text, but does not trigger any processing per se.
 	dirEditor.Alignment = text.Start
 
 	resList.Axis = layout.Vertical
@@ -73,7 +76,8 @@ func mainloop(w *app.Window) error {
 	var ops op.Ops
 
 	for {
-		select {
+
+		select { // handle main loop
 
 		case <-ticker.C: // if we have a tick waiting, invalidate and loop again
 			w.Invalidate()
@@ -91,6 +95,7 @@ func mainloop(w *app.Window) error {
 					fmt.Println("Exiting now !")
 				}
 				return e.Err
+
 			case system.FrameEvent:
 				gtx := layout.NewContext(&ops, e)
 				// uniform margin
@@ -113,8 +118,21 @@ func mainloop(w *app.Window) error {
 				)
 
 				e.Frame(gtx.Ops)
+
 			default:
 				// ignore other events
+			}
+		}
+
+		// handle DirEditor loop
+		for _, evt := range dirEditor.Events() {
+			switch evt.(type) {
+			case widget.ChangeEvent:
+				// Do something when Change the text
+			case widget.SelectEvent:
+				// Do something when select the text
+			case widget.SubmitEvent:
+				go doProcess()
 			}
 		}
 	}
@@ -124,7 +142,7 @@ func drawStartButton(gtx layout.Context) layout.Dimensions {
 
 	if processRunning {
 
-		btn := material.Button(th, &startButton, "Please wait ...")
+		btn := material.Button(th, &startButton, "Processing, please wait ...")
 		return btn.Layout(gtx.Disabled())
 
 	} else {
@@ -135,19 +153,25 @@ func drawStartButton(gtx layout.Context) layout.Dimensions {
 			if DEBUG {
 				fmt.Println("*** button was clicked !")
 			}
-			processRunning = true
-			go func() {
-				err := Process(wdDir, dirEditor.Text())
-				if err != nil {
-					resultsMutex.Lock()
-					results = append(results, "An error occured :", err.Error())
-					resultsMutex.Unlock()
-				}
-				processRunning = false
-			}()
+			go doProcess()
 		}
 		return btn.Layout(gtx)
 	}
+}
+
+func doProcess() {
+	if processRunning { // don't run twice at the same time. This is not 100% thread safe, but should be ok.
+		return
+	} else {
+		processRunning = true
+	}
+	err := Process(wdDir, dirEditor.Text())
+	if err != nil {
+		resultsMutex.Lock()
+		results = append(results, "An error occured :", err.Error())
+		resultsMutex.Unlock()
+	}
+	processRunning = false
 }
 
 func drawTitle(gtx layout.Context) layout.Dimensions {
@@ -173,9 +197,9 @@ func drawDirEditor(gtx layout.Context) layout.Dimensions {
 }
 
 func drawResults(gtx layout.Context) layout.Dimensions {
-	if DEBUG {
-		fmt.Println("displaying results : ", results)
-	}
+	/* if DEBUG {
+		 fmt.Println("displaying results : ", results)
+	} */
 	res := material.List(th, &resList)
 	return res.Layout(gtx,
 		len(results),
