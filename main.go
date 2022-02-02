@@ -5,6 +5,7 @@ import (
 	"image/color"
 	"log"
 	"os"
+	"sync"
 	"time"
 
 	"gioui.org/app"
@@ -18,6 +19,9 @@ import (
 	"gioui.org/widget/material"
 )
 
+// DEBUG turn on or off debugging on console.
+const DEBUG = false
+
 // theme to use
 var th = material.NewTheme(gofont.Collection())
 
@@ -25,10 +29,11 @@ var th = material.NewTheme(gofont.Collection())
 var startButton widget.Clickable
 var dirEditor widget.Editor
 var results []string = make([]string, 0)
+var resultsMutex sync.Mutex
 var resList widget.List
 var wdDir string
 var processRunning bool
-var ticker = time.NewTicker(time.Second) // force refresh every second
+var ticker = time.NewTicker(500 * time.Millisecond) // force regular refresh of the window
 
 func init() {
 
@@ -72,13 +77,19 @@ func mainloop(w *app.Window) error {
 
 		case <-ticker.C: // if we have a tick waiting, invalidate and loop again
 			w.Invalidate()
-			fmt.Println("Invalidated window")
+			if DEBUG {
+				fmt.Println("Invalidated window")
+			}
 
 		case e := <-w.Events(): // process available events
-			fmt.Printf("Event : %T - %v\n", e, time.Now())
+			if DEBUG {
+				fmt.Printf("Event : %T - %v\n", e, time.Now())
+			}
 			switch e := e.(type) {
 			case system.DestroyEvent:
-				fmt.Println("Exiting now !")
+				if DEBUG {
+					fmt.Println("Exiting now !")
+				}
 				return e.Err
 			case system.FrameEvent:
 				gtx := layout.NewContext(&ops, e)
@@ -121,12 +132,16 @@ func drawStartButton(gtx layout.Context) layout.Dimensions {
 		btn := material.Button(th, &startButton, "Start")
 
 		if startButton.Clicked() {
-			fmt.Println("*** button was clicked !")
+			if DEBUG {
+				fmt.Println("*** button was clicked !")
+			}
 			processRunning = true
-			go func() { // async processing required to maintain reactivity, but architecture is wrong as is (refesh does not happen)
+			go func() {
 				err := Process(wdDir, dirEditor.Text())
 				if err != nil {
+					resultsMutex.Lock()
 					results = append(results, "An error occured :", err.Error())
+					resultsMutex.Unlock()
 				}
 				processRunning = false
 			}()
@@ -136,7 +151,7 @@ func drawStartButton(gtx layout.Context) layout.Dimensions {
 }
 
 func drawTitle(gtx layout.Context) layout.Dimensions {
-	title := material.H3(th, "Double ckecker")
+	title := material.H3(th, "Duplicates finder")
 	maroon := color.NRGBA{R: 127, G: 0, B: 0, A: 255}
 	title.Color = maroon
 	title.Alignment = text.Middle
@@ -158,7 +173,9 @@ func drawDirEditor(gtx layout.Context) layout.Dimensions {
 }
 
 func drawResults(gtx layout.Context) layout.Dimensions {
-	fmt.Println("displaying results : ", results)
+	if DEBUG {
+		fmt.Println("displaying results : ", results)
+	}
 	res := material.List(th, &resList)
 	return res.Layout(gtx,
 		len(results),
@@ -174,5 +191,8 @@ func drawResults(gtx layout.Context) layout.Dimensions {
 }
 
 func drawResultsWithMargin(gtx layout.Context) layout.Dimensions {
-	return layout.UniformInset(unit.Dp(10)).Layout(gtx, drawResults)
+	resultsMutex.Lock()
+	dr := layout.UniformInset(unit.Dp(10)).Layout(gtx, drawResults)
+	resultsMutex.Unlock()
+	return dr
 }
