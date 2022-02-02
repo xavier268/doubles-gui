@@ -41,6 +41,7 @@ func ListProcess(path string, info fs.FileInfo, err error) error {
 
 	if info.IsDir() { // process dirs
 		if strings.HasSuffix(path, ".git") {
+			fmt.Println("Skipping .git directory : ", path)
 			return fs.SkipDir
 		}
 	} else { // process files
@@ -60,12 +61,18 @@ func DoubleProcess(path string, info fs.FileInfo, err error) error {
 
 	if info.IsDir() { // process dirs
 		if strings.HasSuffix(path, ".git") {
+			fmt.Println("Skipping .git directory : ", path)
 			return fs.SkipDir
 		}
 	} else { // fill double map
 
 		if !info.Mode().IsRegular() {
 			fmt.Println("Ignoring non regular file  : ", path)
+			return nil
+		}
+
+		if info.Size() == 0 {
+			fmt.Println("Ignoring empty file  : ", path)
 			return nil
 		}
 
@@ -89,11 +96,9 @@ func DoubleProcess(path string, info fs.FileInfo, err error) error {
 	// now, update result list
 
 	rr := make([]string, 0, 50)
-	count := 0
 	for _, v := range mapDoubles {
 		if len(v) >= 2 {
-			count++
-			rr = append(rr, fmt.Sprintf("%4d -------------", count))
+			rr = append(rr, fmt.Sprintf("------------- %4d files have identical content ---------", len(v)))
 			rr = append(rr, v...)
 		}
 	}
