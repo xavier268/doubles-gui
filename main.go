@@ -5,6 +5,7 @@ import (
 	"image/color"
 	"log"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -24,19 +25,27 @@ const DEBUG = false
 
 // theme to use
 var th = material.NewTheme(gofont.Collection())
+var separator = string(filepath.Separator) // file separator
+var wdDir string                           // working directory
 
 // various flags
-var ignoreEmpty, ignoreGit bool
+var ignoreEmpty, ignoreGit = true, true
 var processRunning bool
 
 // startButton is a clickable widget
-var startButton widget.Clickable
+var startButton, quitButton widget.Clickable
 var dirEditor widget.Editor
 var results []string = make([]string, 0)
 var resultsMutex sync.Mutex
 var resList widget.List
-var wdDir string
 var ticker = time.NewTicker(500 * time.Millisecond) // force regular refresh of the window
+
+var red = color.NRGBA{
+	R: 100,
+	G: 0,
+	B: 0,
+	A: 255,
+}
 
 func init() {
 
@@ -91,9 +100,7 @@ func mainloop(w *app.Window) error {
 			}
 			switch e := e.(type) {
 			case system.DestroyEvent:
-				if DEBUG {
-					fmt.Println("Exiting now !")
-				}
+				fmt.Println("Exiting now ! (from main window closed)")
 				return e.Err
 
 			case system.FrameEvent:
@@ -110,9 +117,9 @@ func mainloop(w *app.Window) error {
 							// We insert 3 rigid elements:
 
 							layout.Rigid(drawTitle),
-							layout.Rigid(drawDirEditor),
+							layout.Rigid(drawDirEditorInset),
+							layout.Rigid(drawButtons),
 							layout.Flexed(1., drawResultsWithMargin), // occupy 100% of the remaining space
-							layout.Rigid(drawStartButton),
 						)
 					},
 				)
@@ -138,6 +145,31 @@ func mainloop(w *app.Window) error {
 	}
 }
 
+func drawButtons(gtx layout.Context) layout.Dimensions {
+
+	return layout.Flex{
+		Axis:    layout.Horizontal,
+		Spacing: layout.SpaceStart,
+	}.Layout(
+		gtx,
+
+		layout.Rigid(drawStartButton),
+		layout.Rigid(layout.Spacer{Width: unit.Dp(20)}.Layout),
+		layout.Rigid(drawQuitButton),
+	)
+}
+
+func drawQuitButton(gtx layout.Context) layout.Dimensions {
+	btn := material.Button(th, &quitButton, " Quit ")
+	btn.Background = red
+
+	if quitButton.Clicked() {
+		fmt.Println("Exiting now ! (from quit button)")
+		os.Exit(0)
+	}
+	return btn.Layout(gtx)
+}
+
 func drawStartButton(gtx layout.Context) layout.Dimensions {
 
 	if processRunning {
@@ -147,7 +179,7 @@ func drawStartButton(gtx layout.Context) layout.Dimensions {
 
 	} else {
 
-		btn := material.Button(th, &startButton, "Start")
+		btn := material.Button(th, &startButton, " Start ")
 
 		if startButton.Clicked() {
 			if DEBUG {
@@ -176,24 +208,32 @@ func doProcess() {
 
 func drawTitle(gtx layout.Context) layout.Dimensions {
 	title := material.H3(th, "Duplicates finder")
-	maroon := color.NRGBA{R: 127, G: 0, B: 0, A: 255}
-	title.Color = maroon
+
+	title.Color = red
 	title.Alignment = text.Middle
 	return title.Layout(gtx)
 }
 
 func drawDirEditor(gtx layout.Context) layout.Dimensions {
 	edt := material.Editor(th, &dirEditor, "directory to search")
+	edt.Color = red
+	edt.Font.Weight = 700
 
 	return layout.Flex{
 		Axis:    layout.Horizontal,
-		Spacing: layout.SpaceBetween,
-	}.Layout(gtx,
-
-		layout.Rigid(material.Label(th, unit.Dp(16), wdDir).Layout),
-		layout.Rigid(edt.Layout),
+		Spacing: layout.SpaceEnd,
+	}.Layout(
+		gtx,
+		layout.Rigid(material.Label(th, unit.Dp(16), wdDir+separator).Layout),
+		layout.Flexed(1., edt.Layout),
 	)
+}
 
+func drawDirEditorInset(gtx layout.Context) layout.Dimensions {
+	return layout.Inset{
+		Top:    unit.Dp(30),
+		Bottom: unit.Dp(30),
+	}.Layout(gtx, drawDirEditor)
 }
 
 func drawResults(gtx layout.Context) layout.Dimensions {
