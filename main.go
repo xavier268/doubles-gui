@@ -5,6 +5,7 @@ import (
 	"image/color"
 	"log"
 	"os"
+	"time"
 
 	"gioui.org/app"
 	"gioui.org/font/gofont"
@@ -26,6 +27,8 @@ var dirEditor widget.Editor
 var results []string = make([]string, 0)
 var resList widget.List
 var wdDir string
+var processRunning bool
+var ticker = time.NewTicker(time.Second) // force refresh every second
 
 func init() {
 
@@ -51,6 +54,7 @@ func main() {
 
 func runmainwindow() {
 	w := app.NewWindow()
+
 	err := mainloop(w)
 	if err != nil {
 		log.Fatal(err) // abort all
@@ -64,54 +68,71 @@ func mainloop(w *app.Window) error {
 	var ops op.Ops
 
 	for {
+		select {
 
-		e := <-w.Events()
+		case <-ticker.C: // if we have a tick waiting, invalidate and loop again
+			w.Invalidate()
+			fmt.Println("Invalidated window")
 
-		switch e := e.(type) {
-		case system.DestroyEvent:
-			fmt.Println("Exiting now !")
-			return e.Err
-		case system.FrameEvent:
-			gtx := layout.NewContext(&ops, e)
-			// uniform margin
-			layout.UniformInset(unit.Dp(20)).Layout(
-				gtx,
-				func(gtx layout.Context) layout.Dimensions {
-					return layout.Flex{
-						Axis:    layout.Vertical,
-						Spacing: layout.SpaceBetween,
-					}.Layout(
-						gtx,
-						// We insert 3 rigid elements:
+		case e := <-w.Events(): // process available events
+			fmt.Printf("Event : %T - %v\n", e, time.Now())
+			switch e := e.(type) {
+			case system.DestroyEvent:
+				fmt.Println("Exiting now !")
+				return e.Err
+			case system.FrameEvent:
+				gtx := layout.NewContext(&ops, e)
+				// uniform margin
+				layout.UniformInset(unit.Dp(20)).Layout(
+					gtx,
+					func(gtx layout.Context) layout.Dimensions {
+						return layout.Flex{
+							Axis:    layout.Vertical,
+							Spacing: layout.SpaceBetween,
+						}.Layout(
+							gtx,
+							// We insert 3 rigid elements:
 
-						layout.Rigid(drawTitle),
-						layout.Rigid(drawDirEditor),
-						layout.Flexed(1., drawResultsWithMargin), // occupy 100% of the remaining space
-						layout.Rigid(drawStartButton),
-					)
-				},
-			)
+							layout.Rigid(drawTitle),
+							layout.Rigid(drawDirEditor),
+							layout.Flexed(1., drawResultsWithMargin), // occupy 100% of the remaining space
+							layout.Rigid(drawStartButton),
+						)
+					},
+				)
 
-			e.Frame(gtx.Ops)
-		default:
-			fmt.Printf("%T\t%v\n", e, e)
+				e.Frame(gtx.Ops)
+			default:
+				// ignore other events
+			}
 		}
 	}
 }
 
 func drawStartButton(gtx layout.Context) layout.Dimensions {
-	btn := material.Button(th, &startButton, "Start")
-	if startButton.Clicked() {
-		fmt.Println("*** button was clicked !")
 
-		go func() { // async processing required to maintain reactivity, but architecture is wrong as is (refesh does not happen)
-			err := Process(wdDir, dirEditor.Text())
-			if err != nil {
-				results = append(results, "An error occured :", err.Error())
-			}
-		}()
+	if processRunning {
+
+		btn := material.Button(th, &startButton, "Please wait ...")
+		return btn.Layout(gtx.Disabled())
+
+	} else {
+
+		btn := material.Button(th, &startButton, "Start")
+
+		if startButton.Clicked() {
+			fmt.Println("*** button was clicked !")
+			processRunning = true
+			go func() { // async processing required to maintain reactivity, but architecture is wrong as is (refesh does not happen)
+				err := Process(wdDir, dirEditor.Text())
+				if err != nil {
+					results = append(results, "An error occured :", err.Error())
+				}
+				processRunning = false
+			}()
+		}
+		return btn.Layout(gtx)
 	}
-	return btn.Layout(gtx)
 }
 
 func drawTitle(gtx layout.Context) layout.Dimensions {
