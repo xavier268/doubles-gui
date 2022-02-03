@@ -189,6 +189,8 @@ func drawStartButton(gtx layout.Context) layout.Dimensions {
 		btn := material.Button(th, &startButton, " Start ")
 
 		if startButton.Clicked() {
+			// drain multiple clicks
+			startButton.Clicks()
 			if DEBUG {
 				fmt.Println("*** start button was clicked !")
 			}
@@ -201,6 +203,8 @@ func drawStartButton(gtx layout.Context) layout.Dimensions {
 func drawSaveButton(gtx layout.Context) layout.Dimensions {
 	btn := material.Button(th, &saveButton, " Save ")
 	if !processRunning && saveButton.Clicked() {
+		// drain multiple clicks
+		saveButton.Clicks()
 		if DEBUG {
 			fmt.Println("*** saving results to results.txt !")
 		}
