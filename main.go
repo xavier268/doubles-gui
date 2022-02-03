@@ -22,7 +22,8 @@ import (
 	"gioui.org/widget/material"
 )
 
-// DEBUG turn on or off debugging on console.
+// Version
+const Version = "Version 1.2 (c) 2022 Xavier Gandillot" // DEBUG turn on or off debugging on console.
 const DEBUG = false
 
 // theme to use
@@ -43,7 +44,7 @@ var dirEditor = widget.Editor{
 	Mask:       0,
 	InputHint:  0,
 }
-var results []string = make([]string, 0)
+var results []string = []string{Version, Help}
 var resultsMutex sync.Mutex
 var resList = widget.List{
 	List: layout.List{
@@ -59,6 +60,16 @@ var red = color.NRGBA{
 	B: 0,
 	A: 255,
 }
+
+const Help = `
+Select the directory (relative to the current directory) in the upper editor.
+You may use '..' to move up in the directory tree. but make sure you use the appropriate file separator ('/' for linux and '\' for windows).
+
+Press Start to search for file with identical content.
+
+Pressing Save will Save will save the content of the main window in a text file named resulst-xxxxxx.txt, where xxxx is a time stamp.
+
+Press Quit or close the window to quit the program.`
 
 // utility to check init errors
 func mustString(s string, e error) string {
