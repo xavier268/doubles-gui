@@ -3,9 +3,11 @@ package main
 import (
 	"fmt"
 	"image/color"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -33,7 +35,7 @@ var ignoreEmpty, ignoreGit = true, true
 var processRunning bool
 
 // globals
-var startButton, quitButton widget.Clickable
+var startButton, quitButton, saveButton widget.Clickable
 var dirEditor = widget.Editor{
 	Alignment:  text.Start,
 	SingleLine: true,
@@ -158,6 +160,8 @@ func drawButtons(gtx layout.Context) layout.Dimensions {
 
 		layout.Rigid(drawStartButton),
 		layout.Rigid(layout.Spacer{Width: unit.Dp(20)}.Layout),
+		layout.Rigid(drawSaveButton),
+		layout.Rigid(layout.Spacer{Width: unit.Dp(20)}.Layout),
 		layout.Rigid(drawQuitButton),
 	)
 }
@@ -186,12 +190,33 @@ func drawStartButton(gtx layout.Context) layout.Dimensions {
 
 		if startButton.Clicked() {
 			if DEBUG {
-				fmt.Println("*** button was clicked !")
+				fmt.Println("*** start button was clicked !")
 			}
 			go doProcess()
 		}
 		return btn.Layout(gtx)
 	}
+}
+
+func drawSaveButton(gtx layout.Context) layout.Dimensions {
+	btn := material.Button(th, &saveButton, " Save ")
+	if !processRunning && saveButton.Clicked() {
+		if DEBUG {
+			fmt.Println("*** saving results to results.txt !")
+		}
+		rr := []byte(strings.Join(results, "\n"))
+		fn := fmt.Sprintf("results-%s.txt", time.Now().Format("2006-01-02-150405"))
+		err := ioutil.WriteFile(fn, rr, 0644)
+		if err != nil {
+			results = append(results, err.Error())
+		}
+	}
+	if processRunning {
+		return btn.Layout(gtx.Disabled())
+	} else {
+		return btn.Layout(gtx)
+	}
+
 }
 
 func doProcess() {
