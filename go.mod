@@ -1,4 +1,4 @@
-module gouidemo
+module github.com/xavier268/doubles-gui
 
 go 1.16
 

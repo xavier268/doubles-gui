@@ -26,18 +26,29 @@ const DEBUG = false
 // theme to use
 var th = material.NewTheme(gofont.Collection())
 var separator = string(filepath.Separator) // file separator
-var wdDir string                           // working directory
+var wdDir = mustString(os.Getwd())         // working directory
 
 // various flags
 var ignoreEmpty, ignoreGit = true, true
 var processRunning bool
 
-// startButton is a clickable widget
+// globals
 var startButton, quitButton widget.Clickable
-var dirEditor widget.Editor
+var dirEditor = widget.Editor{
+	Alignment:  text.Start,
+	SingleLine: true,
+	Submit:     true,
+	Mask:       0,
+	InputHint:  0,
+}
 var results []string = make([]string, 0)
 var resultsMutex sync.Mutex
-var resList widget.List
+var resList = widget.List{
+	List: layout.List{
+		Axis:        layout.Vertical,
+		ScrollToEnd: true,
+	},
+}
 var ticker = time.NewTicker(500 * time.Millisecond) // force regular refresh of the window
 
 var red = color.NRGBA{
@@ -47,20 +58,12 @@ var red = color.NRGBA{
 	A: 255,
 }
 
-func init() {
-
-	dirEditor.SingleLine = true
-	dirEditor.Submit = true // this will just prevent enter to be stored as text, but does not trigger any processing per se.
-	dirEditor.Alignment = text.Start
-
-	resList.Axis = layout.Vertical
-	resList.ScrollToEnd = true
-
-	var err error
-	wdDir, err = os.Getwd()
-	if err != nil {
-		panic(err)
+// utility to check init errors
+func mustString(s string, e error) string {
+	if e != nil {
+		panic(e)
 	}
+	return s
 }
 
 func main() {

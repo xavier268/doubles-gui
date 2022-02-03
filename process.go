@@ -83,6 +83,7 @@ func DoubleProcess(path string, info fs.FileInfo, err error) error {
 			rr = append(rr, v...)
 		}
 	}
+	rr = append(rr, fmt.Sprintf("-------- %7d (different) files analysed -------- ", len(mapDoubles)))
 	resultsMutex.Lock()
 	results = rr
 	resultsMutex.Unlock()
