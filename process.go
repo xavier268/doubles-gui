@@ -26,7 +26,7 @@ func Process(baseDir string, dir string) error {
 	mapDoubles = make(map[string][]string)
 	err = filepath.Walk(
 		root,
-		//listProcess,
+		//actual processing of doubles,
 		DoubleProcess,
 	)
 
